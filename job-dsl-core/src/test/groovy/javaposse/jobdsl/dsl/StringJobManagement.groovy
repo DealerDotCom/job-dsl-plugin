@@ -53,10 +53,10 @@ public class StringJobManagement extends AbstractJobManagement {
     }
 
     @Override
-    boolean createOrUpdateConfig(String jobName, String config, boolean ignoreExisting) throws NameNotProvidedException, ConfigurationMissingException {
-        validateUpdateArgs(jobName, config);
+    boolean createOrUpdateConfig(Item job, String config, boolean ignoreExisting) throws NameNotProvidedException, ConfigurationMissingException {
+        validateUpdateArgs(job.getName(), config);
 
-        savedConfigs[jobName] = config
+        savedConfigs[job.getName()] = config
         return false
     }
 

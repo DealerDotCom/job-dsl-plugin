@@ -47,7 +47,7 @@ class AbstractJobManagementSpec extends Specification {
         }
 
         @Override
-        boolean createOrUpdateConfig(String jobName, String config, boolean ignoreExisting) {
+        boolean createOrUpdateConfig(Item job, String config, boolean ignoreExisting) {
             throw new UnsupportedOperationException()
         }
 

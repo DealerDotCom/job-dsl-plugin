@@ -1,12 +1,14 @@
 package javaposse.jobdsl.dsl
 
 import com.google.common.base.Preconditions
+import com.google.common.collect.Lists
 import javaposse.jobdsl.dsl.helpers.AuthorizationContextHelper
 import javaposse.jobdsl.dsl.helpers.BuildParametersContextHelper
 import javaposse.jobdsl.dsl.helpers.MavenHelper
 import javaposse.jobdsl.dsl.helpers.BuildFlowHelper
 import javaposse.jobdsl.dsl.helpers.MultiScmContextHelper
 import javaposse.jobdsl.dsl.helpers.ScmContextHelper
+import javaposse.jobdsl.dsl.helpers.PromotionHelper
 import javaposse.jobdsl.dsl.helpers.publisher.PublisherContextHelper
 import javaposse.jobdsl.dsl.helpers.step.StepContextHelper
 import javaposse.jobdsl.dsl.helpers.toplevel.TopLevelHelper
@@ -24,6 +26,7 @@ public class Job extends Item {
 
     String templateName = null // Optional
     JobType type = null // Required
+    List<Promotion> promotions = Lists.newArrayList()
 
     // The idea here is that we'll let the helpers define their own methods, without polluting this class too much
     @Delegate AuthorizationContextHelper helperAuthorization
@@ -37,6 +40,7 @@ public class Job extends Item {
     @Delegate MavenHelper helperMaven
     @Delegate BuildFlowHelper helperBuildFlow
     @Delegate BuildParametersContextHelper helperBuildParameters
+    @Delegate PromotionHelper promotionHelper
 
     public Job(JobManagement jobManagement, Map<String, Object> arguments=[:]) {
         this.jobManagement = jobManagement;
@@ -55,6 +59,7 @@ public class Job extends Item {
         helperMaven = new MavenHelper(withXmlActions, type)
         helperBuildFlow = new BuildFlowHelper(withXmlActions, type)
         helperBuildParameters = new BuildParametersContextHelper(withXmlActions, type)
+        promotionHelper = new PromotionHelper(this, withXmlActions, type)
     }
 
     /**

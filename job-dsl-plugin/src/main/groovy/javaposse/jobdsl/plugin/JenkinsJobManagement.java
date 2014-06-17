@@ -11,20 +11,12 @@ import hudson.EnvVars;
 import hudson.FilePath;
 import hudson.Plugin;
 import hudson.XmlFile;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractItem;
-import hudson.model.AbstractProject;
-import hudson.model.Cause;
-import hudson.model.Item;
-import hudson.model.Run;
+import hudson.model.*;
 import hudson.model.View;
-import hudson.model.ViewGroup;
 import hudson.util.VersionNumber;
-import javaposse.jobdsl.dsl.AbstractJobManagement;
-import javaposse.jobdsl.dsl.ConfigurationMissingException;
-import javaposse.jobdsl.dsl.GeneratedJob;
-import javaposse.jobdsl.dsl.JobConfigurationNotFoundException;
-import javaposse.jobdsl.dsl.NameNotProvidedException;
+import javaposse.jobdsl.dsl.*;
+import javaposse.jobdsl.dsl.Item;
+import javaposse.jobdsl.dsl.Job;
 import jenkins.model.Jenkins;
 import jenkins.model.ModifiableTopLevelItemGroup;
 import org.custommonkey.xmlunit.Diff;
@@ -32,12 +24,7 @@ import org.custommonkey.xmlunit.XMLUnit;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintStream;
-import java.io.StringReader;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
@@ -92,9 +79,10 @@ public final class JenkinsJobManagement extends AbstractJobManagement {
     }
 
     @Override
-    public boolean createOrUpdateConfig(String fullItemName, String config, boolean ignoreExisting)
+    public boolean createOrUpdateConfig(Item job, String config, boolean ignoreExisting)
             throws NameNotProvidedException, ConfigurationMissingException {
 
+        String fullItemName = job.getName();
         LOGGER.log(Level.INFO, String.format("createOrUpdateConfig for %s", fullItemName));
         boolean created = false;
 
@@ -106,10 +94,56 @@ public final class JenkinsJobManagement extends AbstractJobManagement {
 
         if (item == null) {
             created = createNewItem(fullItemName, config);
+            createJobPromotions((Job) job);
         } else if (!ignoreExisting) {
             created = updateExistingItem(item, config);
+            createJobPromotions((Job) job);
         }
         return created;
+    }
+
+    private void createJobPromotions(Job job) {
+        AbstractItem item = (AbstractItem) Jenkins.getInstance().getItemByFullName(job.getName());
+        File jobDirectory = item.getConfigFile().getFile().getParentFile();
+
+        if(jobDirectory.isDirectory()) {
+            for(Promotion p : job.getPromotions()) {
+                File promotions = new File(jobDirectory, "promotions");
+
+                if(!promotions.isDirectory()) {
+                    promotions.mkdirs();
+                }
+
+                File promotion = new File(promotions, p.name);
+                promotion.mkdir();
+
+                File promotionBuilds = new File(promotion, "builds");
+                promotionBuilds.mkdir();
+
+                File promotionConfig = new File(promotion, "config.xml");
+                File promotionBuildNumber = new File(promotion, "nextBuildNumber");
+
+                try {
+                    BufferedWriter writer = new BufferedWriter(new FileWriter(promotionConfig));
+                    writer.write(p.getPromotionXml());
+                    writer.close();
+
+                    writer = new BufferedWriter(new FileWriter(promotionBuildNumber));
+                    writer.write("1");
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return;
+                }
+            }
+
+            try {
+                item.updateByXml((Source) new StreamSource(new StringReader(item.getConfigFile().asString())));
+            } catch (IOException e) {
+                e.printStackTrace();
+                return;
+            }
+        }
     }
 
     @Override
@@ -293,7 +327,7 @@ public final class JenkinsJobManagement extends AbstractJobManagement {
         ModifiableTopLevelItemGroup ctx = jenkins;
         if (i > 0) {
             String contextName = fullName.substring(0, i);
-            Item contextItem = jenkins.getItemByFullName(contextName);
+            hudson.model.Item contextItem = jenkins.getItemByFullName(contextName);
             if (contextItem instanceof ModifiableTopLevelItemGroup) {
                 ctx = (ModifiableTopLevelItemGroup) contextItem;
             }

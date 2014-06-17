@@ -44,11 +44,12 @@ class FileJobManagement extends AbstractJobManagement {
         }
     }
 
-    boolean createOrUpdateConfig(String jobName, String config, boolean ignoreExisting)
+    @Override
+    boolean createOrUpdateConfig(Item job, String config, boolean ignoreExisting)
         throws NameNotProvidedException, ConfigurationMissingException {
-        validateUpdateArgs(jobName, config);
+        validateUpdateArgs(job.getName(), config);
 
-        new File(jobName + ext).write(config)
+        new File(job.getName() + ext).write(config)
         return true
     }
 
