@@ -94,54 +94,59 @@ public final class JenkinsJobManagement extends AbstractJobManagement {
 
         if (item == null) {
             created = createNewItem(fullItemName, config);
-            createJobPromotions((Job) job);
+            createJobPromotions(job);
         } else if (!ignoreExisting) {
             created = updateExistingItem(item, config);
-            createJobPromotions((Job) job);
+            createJobPromotions(job);
         }
         return created;
     }
 
-    private void createJobPromotions(Job job) {
-        AbstractItem item = (AbstractItem) Jenkins.getInstance().getItemByFullName(job.getName());
-        File jobDirectory = item.getConfigFile().getFile().getParentFile();
+    private void createJobPromotions(Item item) {
 
-        if(jobDirectory.isDirectory()) {
-            for(Promotion p : job.getPromotions()) {
-                File promotions = new File(jobDirectory, "promotions");
+        if(item instanceof Job) {
+            Job job = (Job) item;
 
-                if(!promotions.isDirectory()) {
-                    promotions.mkdirs();
+            AbstractItem build = (AbstractItem) Jenkins.getInstance().getItemByFullName(item.getName());
+            File jobDirectory = build.getConfigFile().getFile().getParentFile();
+
+            if(jobDirectory.isDirectory()) {
+                for (Promotion p : job.getPromotions()) {
+                    File promotions = new File(jobDirectory, "promotions");
+
+                    if (!promotions.isDirectory()) {
+                        promotions.mkdirs();
+                    }
+
+                    File promotion = new File(promotions, p.name);
+                    promotion.mkdir();
+
+                    File promotionBuilds = new File(promotion, "builds");
+                    promotionBuilds.mkdir();
+
+                    File promotionConfig = new File(promotion, "config.xml");
+                    File promotionBuildNumber = new File(promotion, "nextBuildNumber");
+
+                    try {
+                        BufferedWriter writer = new BufferedWriter(new FileWriter(promotionConfig));
+                        writer.write(p.getPromotionXml());
+                        writer.close();
+
+                        writer = new BufferedWriter(new FileWriter(promotionBuildNumber));
+                        writer.write("1");
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        return;
+                    }
                 }
 
-                File promotion = new File(promotions, p.name);
-                promotion.mkdir();
-
-                File promotionBuilds = new File(promotion, "builds");
-                promotionBuilds.mkdir();
-
-                File promotionConfig = new File(promotion, "config.xml");
-                File promotionBuildNumber = new File(promotion, "nextBuildNumber");
-
                 try {
-                    BufferedWriter writer = new BufferedWriter(new FileWriter(promotionConfig));
-                    writer.write(p.getPromotionXml());
-                    writer.close();
-
-                    writer = new BufferedWriter(new FileWriter(promotionBuildNumber));
-                    writer.write("1");
-
+                    build.updateByXml((Source) new StreamSource(new StringReader(build.getConfigFile().asString())));
                 } catch (IOException e) {
                     e.printStackTrace();
                     return;
                 }
-            }
-
-            try {
-                item.updateByXml((Source) new StreamSource(new StringReader(item.getConfigFile().asString())));
-            } catch (IOException e) {
-                e.printStackTrace();
-                return;
             }
         }
     }
